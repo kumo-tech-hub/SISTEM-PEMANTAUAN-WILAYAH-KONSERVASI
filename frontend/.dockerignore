@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.gitignore
+*.local
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*
+

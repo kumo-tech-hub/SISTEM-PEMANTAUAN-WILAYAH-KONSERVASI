@@ -1,5 +1,16 @@
-node_modules
-dist
+# Dependencies & build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS & editor files
 .DS_Store
 *.local
-
+npm-debug.log*
+backend/uploads/*
+!backend/uploads/.gitkeep

@@ -1,0 +1,88 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: simeka-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-simeka_root_secret}
+      MYSQL_DATABASE: ${DB_NAME:-simeka_db}
+      MYSQL_USER: ${DB_USER:-simeka}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-simeka_secret}
+      TZ: Asia/Makassar
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+    networks:
+      - simeka-net
+
+  backend:
+    build:
+      context: ./backend
+      target: prod
+      network: host
+    container_name: simeka-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-simeka}
+      DB_PASSWORD: ${DB_PASSWORD:-simeka_secret}
+      DB_NAME: ${DB_NAME:-simeka_db}
+      UPLOAD_DIR: uploads
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - simeka-net
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      network: host
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: simeka-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - simeka-net
+
+volumes:
+  mysql_data:
+  uploads_data:
+
+networks:
+  simeka-net:
+    driver: bridge

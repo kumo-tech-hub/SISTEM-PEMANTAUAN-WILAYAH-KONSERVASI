@@ -1,0 +1,46 @@
+services:
+  db:
+    ports:
+      - "127.0.0.1:${DB_PORT:-3307}:3306"
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+      network: host
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      CORS_ORIGIN: ${CORS_ORIGIN_DEV:-http://localhost:4174,http://localhost:8080}
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+      network: host
+    environment:
+      VITE_API_BASE_URL: /api
+      VITE_API_PROXY_TARGET: http://backend:4000
+    ports: !override
+      - "${FRONTEND_DEV_PORT:-4174}:4174"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4174/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
